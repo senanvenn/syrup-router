@@ -1,15 +1,45 @@
-# Foundry Template
- > Please update this section
+# Syrup Router
 
+![CI](https://github.com/maple-labs/syrup-router-private/actions/workflows/ci.yaml/badge.svg)
+[![GitBook - Documentation](https://img.shields.io/badge/GitBook-Documentation-orange?logo=gitbook&logoColor=white)](https://maplefinance.gitbook.io/maple/maple-for-developers/protocol-overview)
+[![Foundry][foundry-badge]][foundry]
+[![License: BUSL 1.1](https://img.shields.io/badge/License-BUSL%201.1-blue.svg)](https://github.com/maple-labs/syrup-router-private/blob/main/LICENSE)
 
-## Installation and Testing
+[foundry]: https://getfoundry.sh/
+[foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
 
-### Installation
+## Overview
 
-This project uses foundry, you can follow the installation guide here https://book.getfoundry.sh/getting-started/installation.html
+This repository contains the contracts and modules of the Syrup Router.
 
-When you have installed foundry run the following command to install dependencies:
+## Submodules
 
-```bash
+Submodules imported:
+
+Versions of dependencies can be checked with `git submodule status`.
+
+## Setup
+
+This project was built using [Foundry](https://book.getfoundry.sh/). Refer to installation instructions [here](https://github.com/foundry-rs/foundry#installation).
+
+```sh
+git clone git@github.com:maple-labs/syrup-router-private.git
+cd syrup-router-private
 forge install
 ```
+
+## Audit Reports
+
+## Bug Bounty
+
+For all information related to the ongoing bug bounty for these contracts run by [Immunefi](https://immunefi.com/), please visit this [site](https://immunefi.com/bounty/maple/).
+
+## About Maple
+
+[Maple Finance](https://maple.finance/) is a decentralized corporate credit market. Maple provides capital to institutional borrowers through globally accessible fixed-income yield opportunities.
+
+---
+
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/44272939/196706799-fe96d294-f700-41e7-a65f-2d754d0a6eac.gif" height="100" />
+</p>
