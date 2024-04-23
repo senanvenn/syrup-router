@@ -94,10 +94,10 @@ jobs:
           FOUNDRY_PROFILE: ${{ github.event_name == 'push' && 'ci' || '' }}
 
       - name: Report code coverage
-        uses: zgosalvez/github-actions-report-lcov@v1
+        uses: zgosalvez/github-actions-report-lcov@v4
         with:
           coverage-files: lcov.info.pruned
-          minimum-coverage: 90
+          minimum-coverage: 100
           artifact-name: code-coverage-report
           github-token: ${{ secrets.GITHUB_TOKEN }}
           working-directory: ./
