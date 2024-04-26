@@ -41,6 +41,10 @@ contract MockERC20 is BaseMockERC20 {
         success_ = super.transferFrom(from_, to_, amount_);
     }
 
+    function permit(address owner_, address spender_, uint amount_, uint deadline_, uint8 v_, bytes32 r_, bytes32 s_) public override {
+        super.permit(owner_, spender_, amount_, deadline_, v_, r_, s_);
+    }
+
 }
 
 contract MockPool is MockERC20 {

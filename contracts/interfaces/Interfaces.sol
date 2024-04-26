@@ -5,6 +5,8 @@ interface IERC20Like {
 
     function approve(address spender, uint256 amount) external returns (bool success);
 
+    function permit(address owner, address spender, uint amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external;
+
     function transfer(address recipient, uint256 amount) external returns (bool success);
 
     function transferFrom(address owner, address recipient, uint256 amount) external returns (bool success);

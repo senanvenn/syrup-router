@@ -8,6 +8,8 @@ interface ISyrupRouter {
 
     function deposit(uint256 assets) external;
 
+    function depositWithPermit(address owner, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
+
     function pool() external view returns (address pool);
 
     function poolManager() external view returns (address poolManager);

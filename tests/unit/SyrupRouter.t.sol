@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { Test } from "../../modules/forge-std/src/Test.sol";
+import { console2 as console, Test, Vm } from "../../modules/forge-std/src/Test.sol";
 
 import { SyrupRouter } from "../../contracts/SyrupRouter.sol";
 
@@ -27,6 +27,8 @@ contract SyrupRouterTests is Test {
 
     SyrupRouter router;
 
+    Vm.Wallet accountWallet;
+
     function setUp() public {
         asset = new MockERC20("USDC", "USDC", 6);
         ppm   = new MockPoolPermissionManager();
@@ -34,6 +36,8 @@ contract SyrupRouterTests is Test {
         pool  = new MockPool("MaplePool", "MP", 18, address(asset), address(pm));
 
         router = new SyrupRouter(address(pool));
+
+        accountWallet = vm.createWallet("account");
 
         asset.mint(account, amount);
     }
@@ -120,6 +124,115 @@ contract SyrupRouterTests is Test {
 
         assertEq(pool.balanceOf(account), amount);
         assertEq(pool.totalSupply(),      amount);
+    }
+
+    function test_depositWithPermit_invalidSignature() external {
+        uint256 deadline  = block.timestamp;
+        address depositor = accountWallet.addr;
+
+        // Setting the incorrect nonce
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(depositor, address(router), amount, 1, deadline));
+
+        // The actual error for USDC might not be this.
+        vm.expectRevert("ERC20:P:INVALID_SIGNATURE");
+        router.depositWithPermit(depositor, amount, deadline, v, r, s);
+    }
+
+        function test_depositWithPermit_expiredDeadline() external {
+        uint256 deadline  = block.timestamp - 1 seconds;
+        address depositor = accountWallet.addr;
+
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(depositor, address(router), amount, 0, deadline));
+
+        vm.expectRevert("ERC20:P:EXPIRED");
+        router.depositWithPermit(depositor, amount, deadline , v, r, s);
+    }
+
+    function test_depositWithPermit_notAuthorized() external {
+        ppm.__setHasPermission(false);
+
+        uint256 deadline  = block.timestamp;
+        address depositor = accountWallet.addr;
+
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(accountWallet.addr, address(router), amount, 0, deadline));
+
+        vm.expectRevert("SR:D:NOT_AUTHORIZED");
+        router.depositWithPermit(depositor, amount, deadline, v, r, s);
+    }
+
+    function test_depositWithPermit_transferFromFails_insufficientAmount() external {
+        asset.burn(account, 1);
+
+        uint256 deadline  = block.timestamp;
+        address depositor = accountWallet.addr;
+
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(accountWallet.addr, address(router), amount, 0, deadline));
+
+        vm.expectRevert("SR:D:TRANSFER_FROM_FAIL");
+        router.depositWithPermit(depositor, amount, deadline, v, r, s);
+    }
+
+    function test_depositWithPermit_transferFails() external {
+        pool.__setTransferReverts(true);
+
+        uint256 deadline  = block.timestamp;
+        address depositor = accountWallet.addr;
+
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(accountWallet.addr, address(router), amount, 0, deadline));
+
+        vm.expectRevert("SR:D:TRANSFER_FAIL");
+        router.depositWithPermit(depositor, amount, deadline, v, r, s);
+    }
+
+    function test_depositWithPermit_success() external {
+        uint256 deadline  = block.timestamp;
+        address depositor = accountWallet.addr;
+
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(depositor, address(router), amount, 0, deadline));
+
+        vm.expectCall(
+            address(asset),
+            abi.encodeWithSelector(MockERC20.permit.selector, depositor, address(router), amount, deadline, v, r, s)
+        );
+
+        vm.expectCall(
+            address(ppm),
+            abi.encodeWithSelector(MockPoolPermissionManager.hasPermission.selector, address(pm), depositor, functionId)
+        );
+
+        vm.expectCall(address(asset), abi.encodeWithSelector(MockERC20.transferFrom.selector, depositor, address(router), amount));
+        vm.expectCall(address(pool),  abi.encodeWithSelector(MockPool.deposit.selector, amount, address(router)));
+        vm.expectCall(address(pool),  abi.encodeWithSelector(MockERC20.transfer.selector, depositor, amount));
+
+        assertEq(asset.balanceOf(depositor),     amount);
+        assertEq(asset.balanceOf(address(pool)), 0);
+
+        assertEq(pool.balanceOf(depositor), 0);
+        assertEq(pool.totalSupply(),        0);
+
+        router.depositWithPermit(depositor, amount, deadline, v, r, s);
+
+        assertEq(asset.balanceOf(depositor),     0);
+        assertEq(asset.balanceOf(address(pool)), amount);
+
+        assertEq(pool.balanceOf(depositor), amount);
+        assertEq(pool.totalSupply(),        amount);
+    }
+
+    /**************************************************************************************************************************************/
+    /*** Helpers                                                                                                                        ***/
+    /**************************************************************************************************************************************/
+
+    function _getDigest(address owner_, address spender_, uint256 value_, uint256 nonce_, uint256 deadline_)
+        internal view returns (bytes32 digest_)
+    {
+        return keccak256(
+            abi.encodePacked(
+                '\x19\x01',
+                asset.DOMAIN_SEPARATOR(),
+                keccak256(abi.encode(asset.PERMIT_TYPEHASH(), owner_, spender_, value_, nonce_, deadline_))
+            )
+        );
     }
 
 }
