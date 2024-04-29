@@ -52,6 +52,8 @@ contract MockPool is MockERC20 {
     address _asset;
     address _manager;
 
+    uint256 _conversionRate;
+
     constructor(
         string memory name_,
         string memory symbol_,
@@ -65,6 +67,10 @@ contract MockPool is MockERC20 {
         _manager = manager_;
     }
 
+    function __setConversionRate(uint256 conversionRate_) external {
+        _conversionRate = conversionRate_;
+    }
+
     function deposit(uint256 assets_, address receiver_) external returns (uint256 shares_) {
         MockERC20(_asset).transferFrom(msg.sender, address(this), assets_);
         _mint(receiver_, shares_ = assets_);
@@ -74,8 +80,16 @@ contract MockPool is MockERC20 {
         asset_ = _asset;
     }
 
+    function conversionRate() external view returns (uint256 conversionRate_) {
+        conversionRate_ = _conversionRate;
+    }
+
     function manager() external view returns (address manager_) {
         manager_ = _manager;
+    }
+
+    function convertToExitAssets(uint256) external view returns (uint256 assets_) {
+        assets_ = _conversionRate;
     }
 
 }

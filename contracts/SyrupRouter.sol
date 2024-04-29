@@ -14,10 +14,10 @@ import {
 
 contract SyrupRouter is ISyrupRouter {
 
-    address immutable public override asset;
-    address immutable public override pool;
-    address immutable public override poolManager;
-    address immutable public override poolPermissionManager;
+    address public immutable override asset;
+    address public immutable override pool;
+    address public immutable override poolManager;
+    address public immutable override poolPermissionManager;
 
     constructor(address pool_) {
         pool = pool_;

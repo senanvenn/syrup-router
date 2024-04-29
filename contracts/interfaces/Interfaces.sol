@@ -17,6 +17,8 @@ interface IPoolLike is IERC20Like {
 
     function asset() external view returns (address asset);
 
+    function convertToExitAssets(uint256 shares) external view returns (uint256);
+
     function deposit(uint256 assets, address receiver) external returns (uint256 shares);
 
     function manager() external view returns (address manager);
