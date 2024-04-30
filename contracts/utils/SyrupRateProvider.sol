@@ -14,7 +14,7 @@ contract SyrupRateProvider is ISyrupRateProvider {
     }
 
     function getRate() external view override returns (uint256) {
-        return IPoolLike(pool).convertToExitAssets(1e18) * 1e12;  // Scale up from 1e6 to 1e18
+        return IPoolLike(pool).convertToExitAssets(1e18);
     }
 
 }

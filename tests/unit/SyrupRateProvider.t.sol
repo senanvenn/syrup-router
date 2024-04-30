@@ -34,13 +34,13 @@ contract SyrupRateProviderTests is Test {
 
         uint256 rate = rateProvider.getRate();
 
-        assertEq(rate, 1e18);
+        assertEq(rate, 1e6);
 
         pool.__setConversionRate(2e6);
 
         rate = rateProvider.getRate();
 
-        assertEq(rate, 2e18);
+        assertEq(rate, 2e6);
     }
 
 }
