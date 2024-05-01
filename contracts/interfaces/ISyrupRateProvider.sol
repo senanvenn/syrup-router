@@ -9,9 +9,10 @@ interface ISyrupRateProvider {
     function getRate() external view returns (uint256);
 
     /**
-     * @return The address of Pool contract
+     *  @dev    The address of the ERC4626 Vault.
+     *  @return pool The address of the ERC4626 Vault.
      */
-    function pool() external view returns (address);
+    function pool() external view returns (address pool);
 
 }
 

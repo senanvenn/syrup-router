@@ -32,8 +32,8 @@ contract SyrupRouter is ISyrupRouter {
         require(ERC20Helper.approve(asset_, pool_, type(uint256).max), "SR:C:APPROVE_FAIL");
     }
 
-    function deposit(uint256 amount_) external override {
-        _deposit(msg.sender, amount_);
+    function deposit(uint256 amount_) external override returns (uint256 shares_) {
+        shares_ = _deposit(msg.sender, amount_);
     }
 
     function depositWithPermit(
@@ -43,12 +43,12 @@ contract SyrupRouter is ISyrupRouter {
         uint8   v_,
         bytes32 r_,
         bytes32 s_
-    ) external override {
+    ) external override returns (uint256 shares_) {
         IERC20Like(asset).permit(owner_, address(this), amount_, deadline_, v_, r_, s_);
-        _deposit(owner_, amount_);
+        shares_ = _deposit(owner_, amount_);
     }
 
-    function _deposit(address owner_, uint256 amount_) internal {
+    function _deposit(address owner_, uint256 amount_) internal returns (uint256 shares_) {
         // Check the owner has permission to deposit into the pool.
         require(
             IPoolPermissionManagerLike(poolPermissionManager).hasPermission(poolManager, owner_, "P:deposit"),
@@ -59,8 +59,9 @@ contract SyrupRouter is ISyrupRouter {
         require(ERC20Helper.transferFrom(asset, owner_, address(this), amount_), "SR:D:TRANSFER_FROM_FAIL");
 
         // Deposit assets into the pool and receive the shares personally.
-        address pool_   = pool;
-        uint256 shares_ = IPoolLike(pool_).deposit(amount_, address(this));
+        address pool_ = pool;
+
+        shares_ = IPoolLike(pool_).deposit(amount_, address(this));
 
         // Route shares back to the caller.
         require(ERC20Helper.transfer(pool_, owner_, shares_), "SR:D:TRANSFER_FAIL");
