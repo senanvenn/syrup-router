@@ -14,6 +14,8 @@ import {
 
 contract SyrupRouterTests is Test {
 
+    event DepositData(address indexed owner, uint256 amount, bytes32 depositData);
+
     address account = makeAddr("account");
 
     bytes32 functionId = "P:deposit";
@@ -70,7 +72,7 @@ contract SyrupRouterTests is Test {
 
         vm.prank(account);
         vm.expectRevert("SR:D:NOT_AUTHORIZED");
-        router.deposit(amount);
+        router.deposit(amount, bytes32(0));
     }
 
     function test_deposit_transferFromFails_insufficientAmount() external {
@@ -78,7 +80,7 @@ contract SyrupRouterTests is Test {
 
         vm.prank(account);
         vm.expectRevert("SR:D:TRANSFER_FROM_FAIL");
-        router.deposit(amount);
+        router.deposit(amount, bytes32(0));
     }
 
     function test_deposit_transferFromFails_insufficientApproval() external {
@@ -87,7 +89,7 @@ contract SyrupRouterTests is Test {
 
         vm.prank(account);
         vm.expectRevert("SR:D:TRANSFER_FROM_FAIL");
-        router.deposit(amount);
+        router.deposit(amount, bytes32(0));
     }
 
     function test_deposit_transferFails() external {
@@ -98,7 +100,7 @@ contract SyrupRouterTests is Test {
 
         vm.prank(account);
         vm.expectRevert("SR:D:TRANSFER_FAIL");
-        router.deposit(amount);
+        router.deposit(amount, bytes32(0));
     }
 
     function test_deposit_success() external {
@@ -116,8 +118,12 @@ contract SyrupRouterTests is Test {
         assertEq(pool.balanceOf(account), 0);
         assertEq(pool.totalSupply(),      0);
 
+        vm.expectEmit();
+
+        emit DepositData(account, amount, bytes32(0));
+
         vm.prank(account);
-        router.deposit(amount);
+        router.deposit(amount, bytes32(0));
 
         assertEq(asset.balanceOf(account),       0);
         assertEq(asset.balanceOf(address(pool)), amount);
@@ -135,7 +141,7 @@ contract SyrupRouterTests is Test {
 
         // The actual error for USDC might not be this.
         vm.expectRevert("ERC20:P:INVALID_SIGNATURE");
-        router.depositWithPermit(depositor, amount, deadline, v, r, s);
+        router.depositWithPermit(depositor, amount, deadline, v, r, s, bytes32(0));
     }
 
         function test_depositWithPermit_expiredDeadline() external {
@@ -145,7 +151,7 @@ contract SyrupRouterTests is Test {
         (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(depositor, address(router), amount, 0, deadline));
 
         vm.expectRevert("ERC20:P:EXPIRED");
-        router.depositWithPermit(depositor, amount, deadline , v, r, s);
+        router.depositWithPermit(depositor, amount, deadline , v, r, s, bytes32(0));
     }
 
     function test_depositWithPermit_notAuthorized() external {
@@ -157,7 +163,7 @@ contract SyrupRouterTests is Test {
         (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(accountWallet.addr, address(router), amount, 0, deadline));
 
         vm.expectRevert("SR:D:NOT_AUTHORIZED");
-        router.depositWithPermit(depositor, amount, deadline, v, r, s);
+        router.depositWithPermit(depositor, amount, deadline, v, r, s, bytes32(0));
     }
 
     function test_depositWithPermit_transferFromFails_insufficientAmount() external {
@@ -169,7 +175,7 @@ contract SyrupRouterTests is Test {
         (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(accountWallet.addr, address(router), amount, 0, deadline));
 
         vm.expectRevert("SR:D:TRANSFER_FROM_FAIL");
-        router.depositWithPermit(depositor, amount, deadline, v, r, s);
+        router.depositWithPermit(depositor, amount, deadline, v, r, s, bytes32(0));
     }
 
     function test_depositWithPermit_transferFails() external {
@@ -181,7 +187,7 @@ contract SyrupRouterTests is Test {
         (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(accountWallet.addr, address(router), amount, 0, deadline));
 
         vm.expectRevert("SR:D:TRANSFER_FAIL");
-        router.depositWithPermit(depositor, amount, deadline, v, r, s);
+        router.depositWithPermit(depositor, amount, deadline, v, r, s, bytes32(0));
     }
 
     function test_depositWithPermit_success() external {
@@ -210,7 +216,11 @@ contract SyrupRouterTests is Test {
         assertEq(pool.balanceOf(depositor), 0);
         assertEq(pool.totalSupply(),        0);
 
-        router.depositWithPermit(depositor, amount, deadline, v, r, s);
+        vm.expectEmit();
+
+        emit DepositData(account, amount, bytes32(0));
+
+        router.depositWithPermit(depositor, amount, deadline, v, r, s, bytes32(0));
 
         assertEq(asset.balanceOf(depositor),     0);
         assertEq(asset.balanceOf(address(pool)), amount);

@@ -4,6 +4,14 @@ pragma solidity 0.8.7;
 interface ISyrupRouter {
 
     /**
+     *  @dev   Optional Deposit Data for off-chain processing.
+     *  @param owner       The receiver of the shares.
+     *  @param amount      The amount of assets to deposit.
+     *  @param depositData Optional deposit data.
+     */
+    event DepositData(address indexed owner, uint256 amount, bytes32 depositData);
+
+    /**
      *  @dev    The address of the underlying asset used by the ERC4626 Vault.
      *  @return asset The address of the underlying asset.
      */
@@ -11,22 +19,24 @@ interface ISyrupRouter {
 
     /**
      *  @dev    Mints `shares` to sender by depositing `assets` into the Vault.
-     *  @param  assets The amount of assets to deposit.
-     *  @return shares The amount of shares minted.
+     *  @param  assets      The amount of assets to deposit.
+     *  @param  depositData Optional deposit data.
+     *  @return shares      The amount of shares minted.
      */
-    function deposit(uint256 assets) external returns (uint256 shares);
+    function deposit(uint256 assets, bytes32 depositData) external returns (uint256 shares);
 
     /**
      *  @dev    Does a ERC4626 `deposit` into a Maple Pool with a ERC-2612 `permit`.
-     *  @param  owner    The receiver of the shares.
-     *  @param  amount   The amount of assets to deposit.
-     *  @param  deadline The timestamp after which the `permit` signature is no longer valid.
-     *  @param  v        ECDSA signature v component.
-     *  @param  r        ECDSA signature r component.
-     *  @param  s        ECDSA signature s component.
-     *  @return shares   The amount of shares minted.
+     *  @param  owner      The receiver of the shares.
+     *  @param  amount     The amount of assets to deposit.
+     *  @param  deadline   The timestamp after which the `permit` signature is no longer valid.
+     *  @param  v          ECDSA signature v component.
+     *  @param  r          ECDSA signature r component.
+     *  @param  s          ECDSA signature s component.
+     *  @param depositData Optional deposit data.
+     *  @return shares     The amount of shares minted.
      */
-    function depositWithPermit(address owner, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
+    function depositWithPermit(address owner, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s, bytes32 depositData)
         external returns (uint256 shares);
 
     /**
