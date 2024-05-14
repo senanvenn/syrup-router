@@ -17,10 +17,14 @@ contract SyrupRouterTests is Test {
     event DepositData(address indexed owner, uint256 amount, bytes32 depositData);
 
     address account = makeAddr("account");
+    address ppa     = makeAddr("permissionAdmin");
 
     bytes32 functionId = "P:deposit";
 
-    uint256 amount = 2;
+    uint256 amount         = 2;
+    uint256 bitmap         = 1;
+    uint256 authDeadline   = block.timestamp;
+    uint256 permitDeadline = block.timestamp;
 
     MockERC20                 asset;
     MockPoolManager           pm;
@@ -30,6 +34,7 @@ contract SyrupRouterTests is Test {
     SyrupRouter router;
 
     Vm.Wallet accountWallet;
+    Vm.Wallet ppaWallet;
 
     function setUp() public {
         asset = new MockERC20("USDC", "USDC", 6);
@@ -40,6 +45,7 @@ contract SyrupRouterTests is Test {
         router = new SyrupRouter(address(pool));
 
         accountWallet = vm.createWallet("account");
+        ppaWallet     = vm.createWallet("permissionAdmin");
 
         asset.mint(account, amount);
     }
@@ -65,6 +71,173 @@ contract SyrupRouterTests is Test {
         assertEq(router.poolPermissionManager(), address(ppm));
 
         assertEq(asset.allowance(address(router), address(pool)), type(uint256).max);
+    }
+
+    function test_authorizeAndDeposit_expired() external {
+        authDeadline = block.timestamp - 1;
+
+        vm.expectRevert("SR:A:EXPIRED");
+        router.authorizeAndDeposit(bitmap, authDeadline, 0, bytes32(0), bytes32(0), amount, bytes32(0));
+    }
+
+    function test_authorizeAndDeposit_malleable() external {
+        uint8 v = 2;
+
+        vm.expectRevert("SR:A:MALLEABLE");
+        router.authorizeAndDeposit(bitmap, authDeadline, v, bytes32(0), bytes32(0), amount, bytes32(0));
+    }
+
+    function test_authorizeAndDeposit_notPermissionAdmin() external {
+        ppm.__setPermissionAdmins(false);
+
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(ppaWallet, _getAuthDigest(address(router), account, bitmap, amount, authDeadline));
+
+        vm.prank(account);
+        vm.expectRevert("SR:A:NOT_PERMISSION_ADMIN");
+        router.authorizeAndDeposit(bitmap, authDeadline, v, r, s, amount, bytes32(0));
+    }
+
+    function test_authorizeAndDeposit_success() external {
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(ppaWallet, _getAuthDigest(address(router), account, bitmap, amount, authDeadline));
+
+        address[] memory lenders = new address[](1);
+        lenders[0] = account;
+
+        uint256[] memory bitmaps = new uint256[](1);
+        bitmaps[0] = bitmap;
+
+        vm.prank(account);
+        asset.approve(address(router), amount);
+
+        vm.expectCall(address(ppm), abi.encodeWithSelector(MockPoolPermissionManager.permissionAdmins.selector, address(ppa)));
+        vm.expectCall(address(ppm), abi.encodeWithSelector(MockPoolPermissionManager.setLenderBitmaps.selector, lenders, bitmaps));
+
+        vm.expectCall(address(ppm), abi.encodeWithSelector(
+            MockPoolPermissionManager.hasPermission.selector, address(pm), account, functionId)
+        );
+
+        vm.expectCall(address(asset), abi.encodeWithSelector(MockERC20.transferFrom.selector, account, address(router), amount));
+        vm.expectCall(address(pool),  abi.encodeWithSelector(MockPool.deposit.selector, amount, address(router)));
+        vm.expectCall(address(pool),  abi.encodeWithSelector(MockERC20.transfer.selector, account, amount));
+
+        assertEq(asset.balanceOf(account),       amount);
+        assertEq(asset.balanceOf(address(pool)), 0);
+
+        assertEq(pool.balanceOf(account), 0);
+        assertEq(pool.totalSupply(),      0);
+
+        vm.expectEmit();
+        emit DepositData(account, amount, bytes32(0));
+
+        vm.prank(account);
+        router.authorizeAndDeposit(bitmap, authDeadline, v, r, s, amount, bytes32(0));
+
+        assertEq(asset.balanceOf(account),       0);
+        assertEq(asset.balanceOf(address(pool)), amount);
+
+        assertEq(pool.balanceOf(account), amount);
+        assertEq(pool.totalSupply(),      amount);
+    }
+
+    function test_authorizeAndDepositWithPermit_expired() external {
+        authDeadline = block.timestamp - 1;
+
+        vm.expectRevert("SR:A:EXPIRED");
+        router.authorizeAndDepositWithPermit(
+            bitmap, authDeadline, 0, bytes32(0), bytes32(0), amount, bytes32(0), block.timestamp, 0, bytes32(0), bytes32(0)
+        );
+    }
+
+    function test_authorizeAndDepositWithPermit_malleable() external {
+        uint8 v = 2;
+
+        vm.expectRevert("SR:A:MALLEABLE");
+        router.authorizeAndDepositWithPermit(
+            bitmap, authDeadline, v, bytes32(0), bytes32(0), amount, bytes32(0), block.timestamp, 0, bytes32(0), bytes32(0)
+        );
+    }
+
+    function test_authorizeAndDepositWithPermit_notPermissionAdmin() external {
+        ppm.__setPermissionAdmins(false);
+
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(ppaWallet, _getAuthDigest(address(router), account, bitmap, amount, authDeadline));
+
+        vm.expectRevert("SR:A:NOT_PERMISSION_ADMIN");
+        router.authorizeAndDepositWithPermit(
+            bitmap, authDeadline, v, r, s, amount, bytes32(0), block.timestamp, 0, bytes32(0), bytes32(0)
+        );
+    }
+
+    function test_authorizeAndDepositWithPermit_success() external {
+        // Get both signatures
+        (uint8 auth_v , bytes32 auth_r, bytes32 auth_s ) = vm.sign(ppaWallet, _getAuthDigest(
+            address(router), account, bitmap, amount, authDeadline));
+
+        (uint8 permit_v , bytes32 permit_r, bytes32 permit_s ) = vm.sign(accountWallet, _getPermitDigest(
+            account, address(router), amount, 0, permitDeadline));
+
+        address[] memory lenders = new address[](1);
+        lenders[0] = account;
+
+        uint256[] memory bitmaps = new uint256[](1);
+        bitmaps[0] = bitmap;
+
+        vm.expectCall(address(ppm), abi.encodeWithSelector(MockPoolPermissionManager.permissionAdmins.selector, address(ppa)));
+        vm.expectCall(address(ppm), abi.encodeWithSelector(MockPoolPermissionManager.setLenderBitmaps.selector, lenders, bitmaps));
+
+        vm.expectCall(
+            address(asset),
+            abi.encodeWithSelector(
+                MockERC20.permit.selector,
+                account,
+                address(router),
+                amount,
+                permitDeadline,
+                permit_v,
+                permit_r,
+                permit_s
+            )
+        );
+
+        vm.expectCall(
+            address(ppm),
+            abi.encodeWithSelector(MockPoolPermissionManager.hasPermission.selector, address(pm), account, functionId)
+        );
+
+        vm.expectCall(address(asset), abi.encodeWithSelector(MockERC20.transferFrom.selector, account, address(router), amount));
+        vm.expectCall(address(pool),  abi.encodeWithSelector(MockPool.deposit.selector, amount, address(router)));
+        vm.expectCall(address(pool),  abi.encodeWithSelector(MockERC20.transfer.selector, account, amount));
+
+        assertEq(asset.balanceOf(account),       amount);
+        assertEq(asset.balanceOf(address(pool)), 0);
+
+        assertEq(pool.balanceOf(account), 0);
+        assertEq(pool.totalSupply(),      0);
+
+        vm.expectEmit();
+
+        emit DepositData(account, amount, bytes32(0));
+
+        vm.prank(account);
+        router.authorizeAndDepositWithPermit(
+            bitmap,
+            authDeadline,
+            auth_v,
+            auth_r,
+            auth_s,
+            amount,
+            bytes32(0),
+            permitDeadline,
+            permit_v,
+            permit_r,
+            permit_s
+        );
+
+        assertEq(asset.balanceOf(account),       0);
+        assertEq(asset.balanceOf(address(pool)), amount);
+
+        assertEq(pool.balanceOf(account), amount);
+        assertEq(pool.totalSupply(),      amount);
     }
 
     function test_deposit_notAuthorized() external {
@@ -107,7 +280,9 @@ contract SyrupRouterTests is Test {
         vm.prank(account);
         asset.approve(address(router), amount);
 
-        vm.expectCall(address(ppm),   abi.encodeWithSelector(MockPoolPermissionManager.hasPermission.selector, address(pm), account, functionId));
+        vm.expectCall(address(ppm),   abi.encodeWithSelector(
+            MockPoolPermissionManager.hasPermission.selector, address(pm), account, functionId)
+        );
         vm.expectCall(address(asset), abi.encodeWithSelector(MockERC20.transferFrom.selector, account, address(router), amount));
         vm.expectCall(address(pool),  abi.encodeWithSelector(MockPool.deposit.selector, amount, address(router)));
         vm.expectCall(address(pool),  abi.encodeWithSelector(MockERC20.transfer.selector, account, amount));
@@ -137,7 +312,7 @@ contract SyrupRouterTests is Test {
         address depositor = accountWallet.addr;
 
         // Setting the incorrect nonce
-        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(depositor, address(router), amount, 1, deadline));
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getPermitDigest(depositor, address(router), amount, 1, deadline));
 
         // The actual error for USDC might not be this.
         vm.prank(depositor);
@@ -149,7 +324,7 @@ contract SyrupRouterTests is Test {
         uint256 deadline  = block.timestamp - 1 seconds;
         address depositor = accountWallet.addr;
 
-        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(depositor, address(router), amount, 0, deadline));
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getPermitDigest(depositor, address(router), amount, 0, deadline));
 
         vm.prank(depositor);
         vm.expectRevert("ERC20:P:EXPIRED");
@@ -162,7 +337,8 @@ contract SyrupRouterTests is Test {
         uint256 deadline  = block.timestamp;
         address depositor = accountWallet.addr;
 
-        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(accountWallet.addr, address(router), amount, 0, deadline));
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getPermitDigest(
+            accountWallet.addr, address(router), amount, 0, deadline));
 
         vm.prank(depositor);
         vm.expectRevert("SR:D:NOT_AUTHORIZED");
@@ -175,7 +351,8 @@ contract SyrupRouterTests is Test {
         uint256 deadline  = block.timestamp;
         address depositor = accountWallet.addr;
 
-        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(accountWallet.addr, address(router), amount, 0, deadline));
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getPermitDigest(
+            accountWallet.addr, address(router), amount, 0, deadline));
 
         vm.prank(depositor);
         vm.expectRevert("SR:D:TRANSFER_FROM_FAIL");
@@ -188,7 +365,8 @@ contract SyrupRouterTests is Test {
         uint256 deadline  = block.timestamp;
         address depositor = accountWallet.addr;
 
-        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(accountWallet.addr, address(router), amount, 0, deadline));
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getPermitDigest(
+            accountWallet.addr, address(router), amount, 0, deadline));
 
         vm.prank(depositor);
         vm.expectRevert("SR:D:TRANSFER_FAIL");
@@ -199,7 +377,7 @@ contract SyrupRouterTests is Test {
         uint256 deadline  = block.timestamp;
         address depositor = accountWallet.addr;
 
-        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(depositor, address(router), amount, 0, deadline));
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getPermitDigest(depositor, address(router), amount, 0, deadline));
 
         vm.expectCall(
             address(asset),
@@ -242,7 +420,7 @@ contract SyrupRouterTests is Test {
         vm.prank(depositor);
         asset.approve(address(router), amount);
 
-        ( uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getDigest(depositor, address(router), amount, 0, deadline));
+        ( uint8 v , bytes32 r, bytes32 s ) = vm.sign(accountWallet, _getPermitDigest(depositor, address(router), amount, 0, deadline));
 
         vm.expectCall(
             address(ppm),
@@ -276,7 +454,7 @@ contract SyrupRouterTests is Test {
     /*** Helpers                                                                                                                        ***/
     /**************************************************************************************************************************************/
 
-    function _getDigest(address owner_, address spender_, uint256 value_, uint256 nonce_, uint256 deadline_)
+    function _getPermitDigest(address owner_, address spender_, uint256 value_, uint256 nonce_, uint256 deadline_)
         internal view returns (bytes32 digest_)
     {
         return keccak256(
@@ -286,6 +464,21 @@ contract SyrupRouterTests is Test {
                 keccak256(abi.encode(asset.PERMIT_TYPEHASH(), owner_, spender_, value_, nonce_, deadline_))
             )
         );
+    }
+
+    function _getAuthDigest(address router_, address owner_, uint256 bitmap_, uint256 amount_, uint256 deadline_)
+        internal view returns (bytes32 digest_)
+    {
+        return keccak256(abi.encodePacked(
+            '\x19\x01',
+            block.chainid,
+            router_,
+            owner_,
+            SyrupRouter(router_).nonces(owner_),
+            bitmap_,
+            amount_,
+            deadline_
+        ));
     }
 
 }

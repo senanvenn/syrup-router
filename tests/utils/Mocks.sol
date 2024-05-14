@@ -110,14 +110,27 @@ contract MockPoolManager {
 
 contract MockPoolPermissionManager {
 
-    bool _hasPermission = true;
+    bool _hasPermission    = true;
+    bool _permissionAdmins = true;
 
     function __setHasPermission(bool hasPermission_) external {
         _hasPermission = hasPermission_;
     }
 
+    function __setPermissionAdmins(bool permissionAdmins_) external {
+        _permissionAdmins = permissionAdmins_;
+    }
+
     function hasPermission(address, address, bytes32) external view returns (bool hasPermission_) {
         hasPermission_ = _hasPermission;
+    }
+
+    function permissionAdmins(address) external view returns (bool isAdmin_) {
+        isAdmin_ = _permissionAdmins;
+    }
+
+    function setLenderBitmaps(address[] calldata, uint256[] calldata ) external {
+        // do nothing
     }
 
 }

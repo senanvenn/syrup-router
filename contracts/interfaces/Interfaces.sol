@@ -37,4 +37,8 @@ interface IPoolPermissionManagerLike {
 
     function hasPermission(address poolManager, address lender, bytes32 functionId) external view returns (bool hasPermission);
 
+    function permissionAdmins(address account) external view returns (bool isAdmin);
+
+    function setLenderBitmaps(address[] calldata lenders, uint256[] calldata bitmaps) external;
+
 }
