@@ -49,7 +49,7 @@ contract SyrupRouter is ISyrupRouter {
     )
         external override returns (uint256 shares_)
     {
-        _authorize(deadline_, bitmap_, amount_, auth_v, auth_r, auth_s);
+        _authorize(deadline_, bitmap_, auth_v, auth_r, auth_s);
 
         shares_ = _deposit(msg.sender, amount_, depositData_);
     }
@@ -69,7 +69,7 @@ contract SyrupRouter is ISyrupRouter {
     )
         external override returns (uint256 shares_)
     {
-        _authorize(auth_deadline_, bitmap_, amount_, auth_v, auth_r, auth_s);
+        _authorize(auth_deadline_, bitmap_, auth_v, auth_r, auth_s);
         _permit(asset, permit_deadline, amount_, permit_v_, permit_r_, permit_s_);
 
         shares_ = _deposit(msg.sender, amount_, depositData_);
@@ -98,7 +98,7 @@ contract SyrupRouter is ISyrupRouter {
     /*** Internal Functions                                                                                                             ***/
     /**************************************************************************************************************************************/
 
-    function _authorize(uint256 deadline_, uint256 bitmap_, uint256 amount_, uint8 v_, bytes32 r_, bytes32 s_) internal {
+    function _authorize(uint256 deadline_, uint256 bitmap_, uint8 v_, bytes32 r_, bytes32 s_) internal {
         require(deadline_ >= block.timestamp, "SR:A:EXPIRED");
 
         // Appendix F in the Ethereum Yellow paper (https://ethereum.github.io/yellowpaper/paper.pdf), defines
@@ -116,7 +116,6 @@ contract SyrupRouter is ISyrupRouter {
             msg.sender,
             nonces[msg.sender]++,
             bitmap_,
-            amount_,
             deadline_
         ));
 

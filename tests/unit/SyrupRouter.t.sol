@@ -90,7 +90,7 @@ contract SyrupRouterTests is Test {
     function test_authorizeAndDeposit_notPermissionAdmin() external {
         ppm.__setPermissionAdmins(false);
 
-        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(ppaWallet, _getAuthDigest(address(router), account, bitmap, amount, authDeadline));
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(ppaWallet, _getAuthDigest(address(router), account, bitmap, authDeadline));
 
         vm.prank(account);
         vm.expectRevert("SR:A:NOT_PERMISSION_ADMIN");
@@ -98,7 +98,7 @@ contract SyrupRouterTests is Test {
     }
 
     function test_authorizeAndDeposit_success() external {
-        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(ppaWallet, _getAuthDigest(address(router), account, bitmap, amount, authDeadline));
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(ppaWallet, _getAuthDigest(address(router), account, bitmap, authDeadline));
 
         address[] memory lenders = new address[](1);
         lenders[0] = account;
@@ -160,7 +160,7 @@ contract SyrupRouterTests is Test {
     function test_authorizeAndDepositWithPermit_notPermissionAdmin() external {
         ppm.__setPermissionAdmins(false);
 
-        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(ppaWallet, _getAuthDigest(address(router), account, bitmap, amount, authDeadline));
+        (uint8 v , bytes32 r, bytes32 s ) = vm.sign(ppaWallet, _getAuthDigest(address(router), account, bitmap, authDeadline));
 
         vm.expectRevert("SR:A:NOT_PERMISSION_ADMIN");
         router.authorizeAndDepositWithPermit(
@@ -171,7 +171,7 @@ contract SyrupRouterTests is Test {
     function test_authorizeAndDepositWithPermit_success() external {
         // Get both signatures
         (uint8 auth_v , bytes32 auth_r, bytes32 auth_s ) = vm.sign(ppaWallet, _getAuthDigest(
-            address(router), account, bitmap, amount, authDeadline));
+            address(router), account, bitmap, authDeadline));
 
         (uint8 permit_v , bytes32 permit_r, bytes32 permit_s ) = vm.sign(accountWallet, _getPermitDigest(
             account, address(router), amount, 0, permitDeadline));
@@ -466,7 +466,7 @@ contract SyrupRouterTests is Test {
         );
     }
 
-    function _getAuthDigest(address router_, address owner_, uint256 bitmap_, uint256 amount_, uint256 deadline_)
+    function _getAuthDigest(address router_, address owner_, uint256 bitmap_, uint256 deadline_)
         internal view returns (bytes32 digest_)
     {
         return keccak256(abi.encodePacked(
@@ -476,7 +476,6 @@ contract SyrupRouterTests is Test {
             owner_,
             SyrupRouter(router_).nonces(owner_),
             bitmap_,
-            amount_,
             deadline_
         ));
     }
