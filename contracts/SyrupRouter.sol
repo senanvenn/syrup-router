@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
+import {VennFirewallConsumer} from "@ironblocks/firewall-consumer/contracts/consumers/VennFirewallConsumer.sol";
 import { ERC20Helper } from "../modules/erc20-helper/src/ERC20Helper.sol";
 
 import { ISyrupRouter } from "./interfaces/ISyrupRouter.sol";
@@ -23,7 +24,7 @@ import {
 
 */
 
-contract SyrupRouter is ISyrupRouter {
+contract SyrupRouter is VennFirewallConsumer, ISyrupRouter {
 
     address public immutable override asset;
     address public immutable override pool;
@@ -58,7 +59,7 @@ contract SyrupRouter is ISyrupRouter {
         uint256 amount_,
         bytes32 depositData_
     )
-        external override returns (uint256 shares_)
+        external override firewallProtected returns (uint256 shares_)
     {
         _authorize(deadline_, bitmap_, auth_v, auth_r, auth_s);
 
@@ -78,7 +79,7 @@ contract SyrupRouter is ISyrupRouter {
         bytes32 permit_r_,
         bytes32 permit_s_
     )
-        external override returns (uint256 shares_)
+        external override firewallProtected returns (uint256 shares_)
     {
         _authorize(auth_deadline_, bitmap_, auth_v, auth_r, auth_s);
         _permit(asset, permit_deadline, amount_, permit_v_, permit_r_, permit_s_);
@@ -86,7 +87,7 @@ contract SyrupRouter is ISyrupRouter {
         shares_ = _deposit(msg.sender, amount_, depositData_);
     }
 
-    function deposit(uint256 amount_, bytes32 depositData_) external override returns (uint256 shares_) {
+    function deposit(uint256 amount_, bytes32 depositData_) external override firewallProtected returns (uint256 shares_) {
         shares_ = _deposit(msg.sender, amount_, depositData_);
     }
 
@@ -98,7 +99,7 @@ contract SyrupRouter is ISyrupRouter {
         bytes32 s_,
         bytes32 depositData_
     )
-        external override returns (uint256 shares_)
+        external override firewallProtected returns (uint256 shares_)
     {
         _permit(asset, deadline_, amount_, v_, r_, s_);
 
